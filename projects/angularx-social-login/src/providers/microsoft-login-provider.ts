@@ -95,6 +95,7 @@ const COMMON_AUTHORITY: string = 'https://login.microsoftonline.com/common/';
  * Microsoft Authentication using MSAL v2: https://github.com/AzureAD/microsoft-authentication-library-for-js/tree/dev/lib/msal-browser
  */
 export class MicrosoftLoginProvider extends BaseLoginProvider {
+  // @ts-ignore
   private _instance: MSALClientApplication;
   public static readonly PROVIDER_ID: string = 'MICROSOFT';
 
@@ -121,6 +122,7 @@ export class MicrosoftLoginProvider extends BaseLoginProvider {
 
   initialize(): Promise<void> {
     return new Promise((resolve, reject) => {
+      try {
       this.loadScript(
         MicrosoftLoginProvider.PROVIDER_ID,
         'https://alcdn.msauth.net/browser/2.13.1/js/msal-browser.min.js',
@@ -145,12 +147,24 @@ export class MicrosoftLoginProvider extends BaseLoginProvider {
           } catch (e) {
             reject(e);
           }
+        },
+        null,
+        () => {
+          this.hasError = true;
+          this.onHasErrorChange.emit(this.hasError);
+          reject(`There was an issue loading the ${MicrosoftLoginProvider.PROVIDER_ID} authentication script.`);
         }
       );
+      } catch (err) {
+        reject(err);
+      } finally {
+        this.isLoaded = true;
+        this.onIsLoadedChange.emit(this.isLoaded);
+      }
     });
   }
 
-  private getSocialUser(loginResponse): Promise<SocialUser> {
+  private getSocialUser(loginResponse: MSALLoginResponse): Promise<SocialUser> {
     return new Promise<SocialUser>((resolve, reject) => {
       //After login, use Microsoft Graph API to get user info
       let meRequest = new XMLHttpRequest();
@@ -195,7 +209,7 @@ export class MicrosoftLoginProvider extends BaseLoginProvider {
   async getLoginStatus(): Promise<SocialUser> {
     const accounts = this._instance.getAllAccounts();
     if (accounts?.length > 0) {
-      const loginResponse = await this._instance.ssoSilent({
+      const loginResponse: MSALLoginResponse = await this._instance.ssoSilent({
         scopes: this.initOptions.scopes,
         loginHint: accounts[0].username
       });
@@ -205,8 +219,8 @@ export class MicrosoftLoginProvider extends BaseLoginProvider {
     }
   }
 
-  async signIn(): Promise<SocialUser> {
-    const loginResponse = await this._instance.loginPopup({
+  async signIn(options: MSALLoginRequest | undefined = undefined): Promise<SocialUser> {
+    const loginResponse = await this._instance.loginPopup(options ? options : {
       scopes: this.initOptions.scopes,
       prompt: this.initOptions.prompt,
     });

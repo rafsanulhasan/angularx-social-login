@@ -3,7 +3,7 @@ import { SocialUser } from '../entities/social-user';
 
 declare let VK: any;
 
-const permissionTypes = {
+const permissionTypes: any = {
   notify: 1,
   friends: 2,
   photos: 4,
@@ -18,7 +18,7 @@ const permissionTypes = {
   messages: 4096,
   wall: 8192,
   ads: 32768,
-  offline: 65536, 
+  offline: 65536,
   docs: 131072,
   groups: 262144,
   notifications: 524288,
@@ -55,10 +55,19 @@ export class VKLoginProvider extends BaseLoginProvider {
             });
 
             resolve();
-          }
+          },
+        null,
+        () => {
+          this.hasError = true;
+          this.onHasErrorChange.emit(this.hasError);
+          reject(`There was an issue loading the ${VKLoginProvider.PROVIDER_ID} authentication script.`);
+        }
         );
       } catch (err) {
         reject(err);
+      } finally {
+        this.isLoaded = true;
+        this.onIsLoadedChange.emit(this.isLoaded);
       }
     });
   }
@@ -101,7 +110,7 @@ export class VKLoginProvider extends BaseLoginProvider {
   }
 
   private signInInternal(
-    resolve: (value: SocialUser) => void, 
+    resolve: (value: SocialUser) => void,
     scope:any
   ) {
     VK.Auth.login((loginResponse: any) => {
@@ -116,8 +125,8 @@ export class VKLoginProvider extends BaseLoginProvider {
   }
 
   private getUser(
-    userId: number, 
-    token: string, 
+    userId: number,
+    token: string,
     resolve: (value: SocialUser) => void
   ) {
     VK.Api.call(
